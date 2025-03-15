@@ -72,6 +72,7 @@ enum riscv_csr_class
   CSR_CLASS_F,		/* f-ext only */
   CSR_CLASS_ZKR,	/* zkr only */
   CSR_CLASS_V,		/* rvv only */
+  CSR_CLASS_V_OR_P,	/* rvv or rvp */
   CSR_CLASS_DEBUG,	/* debug CSR */
   CSR_CLASS_H,		/* hypervisor */
   CSR_CLASS_H_32,	/* hypervisor, rv32 only */
@@ -1026,7 +1027,9 @@ riscv_csr_address (const char *csr_name,
   bool need_check_version = false;
   bool is_rv32_only = false;
   bool is_h_required = false;
+  bool custom = true;
   const char* extension = NULL;
+  const char* custom_display = NULL;
 
   switch (csr_class)
     {
@@ -1051,6 +1054,11 @@ riscv_csr_address (const char *csr_name,
       break;
     case CSR_CLASS_V:
       extension = "zve32x";
+      break;
+    case CSR_CLASS_V_OR_P:
+      custom = riscv_subset_supports (&riscv_rps_as, "zve32x")
+	       || riscv_subset_supports (&riscv_rps_as, "p");
+      custom_display = "zve32x' or `p";
       break;
     case CSR_CLASS_SMAIA_32:
       is_rv32_only = true;
@@ -1126,6 +1134,9 @@ riscv_csr_address (const char *csr_name,
 	  && !riscv_subset_supports (&riscv_rps_as, extension))
 	as_warn (_("invalid CSR `%s', needs `%s' extension"),
 		 csr_name, extension);
+       if (custom_display != NULL && !custom)
+	as_warn (_("invalid CSR `%s', needs `%s' extension"),
+		 csr_name, custom_display);
     }
 
   while (entry != NULL)
@@ -1497,6 +1508,30 @@ validate_riscv_insn (const struct riscv_opcode *opc, int length)
 		  }
 	      }
 	      break;
+            case 'p': /* RVP immediate operands */
+              {
+                size_t n;
+                size_t s;
+                switch (*++oparg)
+                  {
+                  case 's': /* Integer immediate, 'XpsN@S' ... N-bit signed immediate at bit S.  */
+		    goto use_immp;
+		  case 'u': /* Integer immediate, 'XpuN@S' ... N-bit unsigned immediate at bit S.  */
+		    goto use_immp;
+		  use_immp:
+		    n = strtol (oparg + 1, (char **)&oparg, 10);
+		    if (*oparg != '@')
+		      goto unknown_validate_operand;
+		    s = strtol (oparg + 1, (char **)&oparg, 10);
+		    oparg--;
+
+		    USE_IMM (n, s);
+		    break;
+		  default:
+		    goto unknown_validate_operand;
+		  }
+	      }
+	      break; /* case 'p' closes */
 	    case 'c': /* Vendor-specific (CORE-V) operands.  */
 	      switch (*++oparg)
 		{
@@ -3746,6 +3781,62 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		      }
 		  }
 		  break;
+
+                case 'p': /* RVP-extension immediate operands */
+                  {
+                    size_t n;
+                    size_t s;
+                    bool sign;  
+                  switch (*++oparg)
+                    {
+                      case 's': /*Xps__  signed immediate value. Other cases can be similarly added depending on the instruction. */
+		        sign = true;
+                        goto parse_immp;
+		      case 'u': /*Xpu__ unsigned immediate value eg Xpu4@20*/
+                        sign = false;
+                        goto parse_immp;
+                      
+                      parse_immp:
+                         /*parsing 'N' and '@S' values eg Xpu4@20*/
+                        n = strtol(oparg + 1, (char **)&oparg, 10);
+                        if (*oparg != '@')
+                          goto unknown_riscv_ip_operand;
+                        s = strtol(oparg + 1, (char **)&oparg, 10);
+                        oparg--;
+
+                        /*
+                 	 * read the immediate value from user code (e.g. the '7' in
+                 	 * "uclip16 x10, x11, 7")
+                	 */
+			my_getExpression(imm_expr, asarg);
+                        check_absolute_expr(ip, imm_expr, false);
+
+                        /* range-check: if sign=false ie unsigned => 0 to (2^n - 1) */
+		        if (!sign)
+		          {
+		            if (!VALIDATE_U_IMM(imm_expr->X_add_number, n))
+		              as_bad(_("improper immediate value (%" PRIu64 ")"),
+		                     imm_expr->X_add_number);
+		          }
+		        else
+		          {
+		            if (!VALIDATE_S_IMM(imm_expr->X_add_number, n))
+		              as_bad(_("improper immediate value (%" PRIi64 ")"),
+		                     imm_expr->X_add_number);
+		          }
+                        
+                        /* Insert the bits [s + n - 1 : s] into ip->insn_opcode eg [23 : 20] for Xpu4@20*/
+		        INSERT_IMM(n, s, *ip, imm_expr->X_add_number);
+
+		        imm_expr->X_op = O_absent;
+		        asarg = expr_parse_end;
+		        continue;  /* proceed to next operand */
+
+                      default:
+                        goto unknown_riscv_ip_operand;
+                    }
+                  }
+                  break; /* case 'p' ends */
 
 		case 'c': /* Vendor-specific (CORE-V) operands.  */
 		  switch (*++oparg)

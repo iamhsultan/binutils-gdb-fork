@@ -709,6 +709,38 @@ print_insn_args (const char *oparg, insn_t l, bfd_vma pc, disassemble_info *info
 		  }
 	      }
 	      break;
+            case 'p': /* RVP immediate operand */
+              {
+		size_t n;
+		size_t s;
+		bool sign;
+		switch (*++oparg)
+		  {
+                  case 's': /* Integer immediate, 'XpsN@S' ... N-bit signed immediate at bit S.  */
+		    sign = true;
+		    goto print_immp;
+		  case 'u': /* Integer immediate, 'XpuN@S' ... N-bit unsigned immediate at bit S.  */
+		    sign = false;
+		    goto print_immp;
+		  print_immp:
+		    n = strtol (oparg + 1, (char **)&oparg, 10);
+		    if (*oparg != '@')
+		      goto undefined_modifier;
+		    s = strtol (oparg + 1, (char **)&oparg, 10);
+		    oparg--;
+
+		    if (!sign)
+		      print (info->stream, dis_style_immediate, "%lu",
+			     (unsigned long)EXTRACT_U_IMM (n, s, l));
+		    else
+		      print (info->stream, dis_style_immediate, "%li",
+			     (signed long)EXTRACT_S_IMM (n, s, l));
+		    break;
+		  default:
+		    goto undefined_modifier;
+		  }
+	      }
+	      break; /* case 'p' ends */           
 	    case 'c': /* Vendor-specific (CORE-V) operands.  */
 	      switch (*++oparg)
 		{

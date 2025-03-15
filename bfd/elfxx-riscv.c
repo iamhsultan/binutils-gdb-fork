@@ -1202,6 +1202,9 @@ static struct riscv_implicit_subset riscv_implicit_subsets[] =
   {"ssstateen", "zicsr",	check_implicit_always},
   {"sstc", "zicsr",		check_implicit_always},
   {"svadu", "zicsr",		check_implicit_always},
+  {"p", "zicsr",         check_implicit_always},
+  {"p", "m",             check_implicit_always},
+  {"p", "i",             check_implicit_always},
 
   {"xsfvcp", "zve32x",  check_implicit_always},
   {NULL, NULL, NULL}
@@ -1254,6 +1257,7 @@ static struct riscv_supported_ext riscv_supported_std_ext[] =
   {"c",		ISA_SPEC_CLASS_20191213,	2, 0, 0 },
   {"c",		ISA_SPEC_CLASS_20190608,	2, 0, 0 },
   {"c",		ISA_SPEC_CLASS_2P2,		2, 0, 0 },
+  {"p",		ISA_SPEC_CLASS_DRAFT,		0, 9, 0 },
   {"v",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
   {"h",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
   {NULL, 0, 0, 0, 0}
@@ -2531,6 +2535,8 @@ riscv_multi_subset_supports (riscv_parse_subset_t *rps,
       return riscv_subset_supports (rps, "zksed");
     case INSN_CLASS_ZKSH:
       return riscv_subset_supports (rps, "zksh");
+    case INSN_CLASS_P:
+      return riscv_subset_supports (rps, "p");
     case INSN_CLASS_V:
       return (riscv_subset_supports (rps, "v")
 	      || riscv_subset_supports (rps, "zve64x")
@@ -2792,6 +2798,8 @@ riscv_multi_subset_supports_ext (riscv_parse_subset_t *rps,
       return "zksed";
     case INSN_CLASS_ZKSH:
       return "zksh";
+    case INSN_CLASS_P:
+      return "p";
     case INSN_CLASS_V:
       return _("v' or `zve64x' or `zve32x");
     case INSN_CLASS_ZVEF:
