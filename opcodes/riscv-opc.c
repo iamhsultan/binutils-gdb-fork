@@ -1199,6 +1199,9 @@ const struct riscv_opcode riscv_opcodes[] =
 {"pcliph",      0, INSN_CLASS_P,  "d,s,Xpu4@20", MATCH_PCLIPH, MASK_PCLIPH, match_opcode, 0},
 {"pclipuh",     0, INSN_CLASS_P,  "d,s,Xpu4@20", MATCH_PCLIPUH, MASK_PCLIPUH, match_opcode, 0},
 {"pabsh",       0, INSN_CLASS_P,  "d,s",   MATCH_PABSH, MASK_PABSH, match_opcode, 0},
+{"smaqa",       0, INSN_CLASS_P,  "d,s,t", MATCH_SMAQA, MASK_SMAQA, match_opcode, 0},
+{"umaqa",       0, INSN_CLASS_P,  "d,s,t", MATCH_UMAQA, MASK_UMAQA, match_opcode, 0},
+{"smaqasu",     0, INSN_CLASS_P,  "d,s,t", MATCH_SMAQASU, MASK_SMAQASU, match_opcode, 0 },
 
 /* RVV instructions.  */
 {"vsetvl",     0, INSN_CLASS_V,  "d,s,t",  MATCH_VSETVL, MASK_VSETVL, match_opcode, 0},
